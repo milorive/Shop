@@ -3,11 +3,13 @@
     using Data;
     using Data.Entities;
     using Helpers;
+    using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.EntityFrameworkCore;
     using Shop.Web.Models;
     using System;
     using System.IO;
+    using System.Linq;
     using System.Threading.Tasks;
 
     public class ProductsController : Controller
@@ -24,7 +26,7 @@
         // GET: Products
         public IActionResult Index()
         {
-            return View(this.productRepository.GetAll());
+            return View(this.productRepository.GetAll().OrderBy(p => p.Name));
         }
 
         // GET: Products/Details/5
@@ -32,19 +34,19 @@
         {
             if (id == null)
             {
-                return NotFound();
+                return new NotFoundViewResult("ProductNotFound");
             }
 
             var product = await this.productRepository.GetByIdAsync(id.Value);
             if (product == null)
             {
-                return NotFound();
+                return new NotFoundViewResult("ProductNotFound");
             }
 
             return View(product);
         }
 
-        // GET: Products/Create
+        [Authorize(Roles = "Admin")]
         public IActionResult Create()
         {
             return View();
@@ -78,13 +80,10 @@
                 }
 
                 var product = this.ToProduct(view, path);
-
-                // TODO: Pending to change to: this.User.Identity.Name
-                product.User = await this.userHelper.GetUserByEmailAsync("camilorr_@hotmail.com");
+                product.User = await this.userHelper.GetUserByEmailAsync(this.User.Identity.Name);
                 await this.productRepository.CreateAsync(product);
                 return RedirectToAction(nameof(Index));
             }
-
             return View(view);
         }
 
@@ -105,7 +104,7 @@
 
         }
 
-        // GET: Products/Edit/5
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -170,9 +169,7 @@
                     }
 
                     var product = this.ToProduct(view, path);
-
-                    // TODO: Pending to change to: this.User.Identity.Name
-                    product.User = await this.userHelper.GetUserByEmailAsync("jzuluaga55@gmail.com");
+                    product.User = await this.userHelper.GetUserByEmailAsync(this.User.Identity.Name);
                     await this.productRepository.UpdateAsync(product);
                 }
                 catch (DbUpdateConcurrencyException)
@@ -192,7 +189,7 @@
             return View(view);
         }
 
-        // GET: Products/Delete/5
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int? id)
         {
             if (id == null)
@@ -217,6 +214,11 @@
             var product = await this.productRepository.GetByIdAsync(id);
             await this.productRepository.DeleteAsync(product);
             return RedirectToAction(nameof(Index));
+        }
+
+        public IActionResult ProductNotFound()
+        {
+            return this.View();
         }
     }
 }
